@@ -213,7 +213,7 @@ rmeas <- Csnippet("
 # POMP model
 data %>% 
   pomp(t0=data$time[1],
-       time="time",
+       times="time",
        rprocess=euler(rproc, delta.t=time_step),
        rinit=initlz,
        rmeasure=rmeas,
