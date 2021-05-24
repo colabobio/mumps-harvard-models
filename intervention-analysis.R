@@ -29,7 +29,7 @@ library(ggplot2)
 theme_set(theme_bw())
 
 library(pomp)
-stopifnot(packageVersion("pomp")>="2")
+stopifnot(packageVersion("pomp")>="3")
 
 # =============================================================================
 # DATA
