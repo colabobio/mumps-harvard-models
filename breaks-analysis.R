@@ -500,7 +500,7 @@ cumulative_area_plot <- function(sdat, ymax, fname) {
   ggsave(file.path(plotting_folder, fname))
 }
 
-cmax <- 0.8 * max(sim_data_int$cumulative, sim_data_noint$cumulative)
+cmax <- 0.8 * max(sim_data_int$cumulative)
 cumulative_area_plot(sim_data_int, cmax, "4-cumulative_cases_percentiles-comparison-with_int.pdf")
 
 # =============================================================================
