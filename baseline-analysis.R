@@ -1,6 +1,6 @@
 args = commandArgs(trailingOnly=TRUE)
 
-main_folder <- "./intervention"
+main_folder <- "./baseline"
 data_folder <- "./data"
 prop_file <- "fast.properties"
 
@@ -69,24 +69,21 @@ spring_day0 <- as.integer(prop$spring_day0)
 spring_day1 <- as.integer(prop$spring_day1)
 summer_day0 <- as.integer(prop$summer_day0)
 
-free_param_names <- c("beta", "gamma", "rho", "psi", "p", "q")
+free_param_names <- c("beta", "gamma", "rho", "psi")
 free_param_box <- rbind(
   beta = c(as.numeric(prop$bounds_beta_min), as.numeric(prop$bounds_beta_max)),
   gamma = c(as.numeric(prop$bounds_gamma_min), as.numeric(prop$bounds_gamma_max)),
   rho = c(as.numeric(prop$bounds_rho_min), as.numeric(prop$bounds_rho_max)),
-  psi = c(as.numeric(prop$bounds_psi_min), as.numeric(prop$bounds_psi_max)),
-  p = c(as.numeric(prop$bounds_p_min), as.numeric(prop$bounds_p_max)),
-  q = c(as.numeric(prop$bounds_q_min), as.numeric(prop$bounds_q_max))
+  psi = c(as.numeric(prop$bounds_psi_min), as.numeric(prop$bounds_psi_max))
 )
 
-log_trans_params <- c("beta", "psi", "q")
-logit_trans_params <- c("gamma", "rho", "p")
+log_trans_params <- c("beta", "psi")
+logit_trans_params <- c("gamma", "rho")
 
-fixed_param_names <- c("pop", "S_0", "E_0", "I_0", "R_0", "sigma", "intervention", "spring0", "spring1", "summer0")
+fixed_param_names <- c("pop", "S_0", "E_0", "I_0", "R_0", "sigma")
 fixed_param_values <- c(pop=pop_size, 
                         S_0=1-(exp0+inf0+rec0)/pop_size, E_0=exp0/pop_size, I_0=inf0/pop_size, R_0=rec0/pop_size, 
-                        sigma=as.numeric(prop$sigma), intervention=new_diag_day, 
-                        spring0=spring_day0, spring1=spring_day1, summer0=summer_day0)
+                        sigma=as.numeric(prop$sigma))
 
 all_param_names <- c(free_param_names, fixed_param_names)
 
@@ -141,24 +138,11 @@ data=subset(data,time <= total_days)
 # C snippets
 
 rproc <- Csnippet("
-  double betaf, gammaf;
   double rate[3], trans[3];
 
-  if (intervention <= t) {
-      gammaf = q * gamma;
-  } else {
-      gammaf = gamma;
-  }
-
-  if ((spring0 <= t && t <= spring1) || summer0 <= t) {
-    betaf = p * beta;
-  } else {
-    betaf = beta;
-  }
-
-  rate[0] = betaf * I/pop;
+  rate[0] = beta * I/pop;
   rate[1] = sigma;
-  rate[2] = gammaf;
+  rate[2] = gamma;
 
   // transitions between classes
   reulermultinom(1, S, &rate[0], dt, &trans[0]);
@@ -248,15 +232,13 @@ num_replicates <- as.integer(prop$num_replicates)
 perturb_sizes <- list(beta=as.numeric(prop$perturb_size_beta),
                       gamma=as.numeric(prop$perturb_size_gamma),
                       rho=as.numeric(prop$perturb_size_rho),
-                      psi=as.numeric(prop$perturb_size_psi),
-                      p=as.numeric(prop$perturb_size_p),
-                      q=as.numeric(prop$perturb_size_q))
+                      psi=as.numeric(prop$perturb_size_psi))
 
 cool_frac <- as.numeric(prop$cool_frac)
 cool_type <- prop$cool_type
 
 # Variables to use in the scatterplot matrix showing the result of the IF search
-pair_vars <- ~loglik+beta+gamma+rho+psi+p+q
+pair_vars <- ~loglik+beta+gamma+rho+psi
 
 # Test run from single starting point in parameter space and no replicates
 
@@ -438,24 +420,6 @@ sim_data %>%
 ggsave(file.path(plotting_folder, "3-simulations_int.pdf"))
 
 # =============================================================================
-# PLOT HARVARD OUTBREAK WITHOUT INTERVENTION
-
-theta_noq <- theta_opt
-theta_noq["q"] <- 1
-
-#set.seed(test_sim_seed)
-
-mdl_int  %>%
-  simulate(params=theta_noq, nsim=9, format="data.frame", include.data=TRUE) -> sim_data_noq
-
-sim_data_noq %>%
-  ggplot(aes(x=time, y=cases, group=.id, color=(.id=="data"))) +
-  guides(color=FALSE) +
-  geom_line() + facet_wrap(~.id, ncol=2)
-
-ggsave(file.path(plotting_folder, "3-simulations_noint.pdf"))
-
-# =============================================================================
 # COMPARE CUMULATIVE NUMBERS OF OUTBREAK W/ AND W/O INTERVENTION
 
 # Running a large number of simulations with and without intervention
@@ -466,20 +430,12 @@ mdl_int %>%
   simulate(params=theta_opt, nsim=num_sims, format = "data.frame", include.data=TRUE) %>% 
   rem_low_count_simulations(num_sims) -> sim_data_int
 
-mdl_int %>% 
-  simulate(params=theta_noq, nsim=num_sims, format = "data.frame", include.data=TRUE) %>%  
-  rem_low_count_simulations(num_sims) -> sim_data_noint
-
 # Adding cumulative counts
 cobs <- cumulative_curve(data, total_days)
 
 all_csum <- calc_cumulative_counts(sim_data_int, total_days)
 all_csum <- c(cobs, all_csum)
 sim_data_int <- cbind(sim_data_int, cumulative=all_csum)
-
-all_csum <- calc_cumulative_counts(sim_data_noint, total_days)
-all_csum <- c(cobs, all_csum)
-sim_data_noint <- cbind(sim_data_noint, cumulative=all_csum)
 
 # Compare the observed data with the simulated data between the 5th and 95th percentiles
 case_area_plot <- function(sdat, fname) {
@@ -499,7 +455,6 @@ case_area_plot <- function(sdat, fname) {
 }
 
 case_area_plot(sim_data_int, "4-simulated_percentiles-with_int.pdf")
-case_area_plot(sim_data_noint, "4-simulated_percentiles-wout_int.pdf")
 
 # Getting the median cumulative curve for simulated data with intervention
 
@@ -507,21 +462,13 @@ num_sims_int <- length(unique(sim_data_int$.id)) - 1
 sim_int <- median_simulation(sim_data_int, num_sims_int)
 csim_int <- cumulative_curve(sim_int, total_days)
 
-# Getting the median cumulative curve for the simulations w/out interventionsim_noint <- median_simulation(sim_data_noint, num_sims)
-num_sims_noint <- length(unique(sim_data_noint$.id)) - 1
-sim_noint <- median_simulation(sim_data_noint, num_sims_noint)
-csim_noint <- cumulative_curve(sim_noint, total_days)
-
 df <- data.frame('time' = seq(1, total_days), 
                  'obs_data' = cobs,
-                 'sim_data_int' = csim_int,
-                 'sim_data_noint' = csim_noint)
+                 'sim_data_int' = csim_int)
 
 ggplot(df, aes(time)) + 
   geom_line(aes(y = obs_data, colour = "Real Data")) + 
-  geom_line(aes(y = sim_data_int, colour = "Simulation with Intervention")) +
-  geom_line(aes(y = sim_data_noint, colour = "Simulation without Intervention")) +
-  geom_vline(xintercept = new_diag_day, colour = 'black', linetype = 3)  + 
+  geom_line(aes(y = sim_data_int, colour = "Simulation")) +
   ylab('Cumulative Number of Cases')
 
 ggsave(file.path(plotting_folder, "4-cumulative_cases_median-comparison.pdf"))
@@ -545,72 +492,6 @@ cumulative_area_plot <- function(sdat, ymax, fname) {
 
 cmax <- 0.8 * max(sim_data_int$cumulative, sim_data_noint$cumulative)
 cumulative_area_plot(sim_data_int, cmax, "4-cumulative_cases_percentiles-comparison-with_int.pdf")
-cumulative_area_plot(sim_data_noint, cmax, "4-cumulative_cases_percentiles-comparison-wout_int.pdf")
-
-# =============================================================================
-# SHOW HOW OUTBREAK SIZE CHANGES (comparison to the simulation size AND actual size)
-
-outbreak_size <- function(intervention_day) {
-  theta_global_int_day <- theta_opt
-  theta_global_int_day["intervention"] <- intervention_day
-  
-  mdl_int %>% 
-    simulate(params=c(theta_global_int_day), 
-             nsim=num_sims, format = "data.frame", include.data=TRUE) -> simulation_data
-
-  sizes <- c()
-  sizes_dday <- c()
-  for (i in 1:num_sims) {
-    temp <- subset(simulation_data, .id == i)
-    temp_dday <- subset(data_dday, .id == i)
-    size <- sum(temp$cases)
-    sizes <- c(sizes, size)
-    sizes_dday <- c(sizes_dday, sum(temp_dday$cases))
-  }
-  
-  actual_size <- sum(data$cases)
-
-  final_size <- mean(sizes)
-  final_size_dday <- mean(sizes_dday)
-
-  percentage <- (final_size_dday - final_size) / final_size_dday
-  percentage_2 <- (actual_size - final_size) / actual_size
-
-  return(c(final_size, percentage * 100, percentage_2 * 100))
-}
-
-theta_dday <- theta_opt
-theta_dday["intervention"] <- new_diag_day
-
-mdl_int %>% 
-   simulate(params=theta_dday, nsim=num_sims, format = "data.frame", include.data=TRUE) -> data_dday
-
-reduction_size = c()
-reduction_size_actual = c()
-for (i in seq(1, new_diag_day - 1, length=new_diag_day - 1)) {
-    size = outbreak_size(floor(i))
-    reduction_size = c(reduction_size, size[2])
-    reduction_size_actual = c(reduction_size_actual, size[3])
-}
-
-red_size <- reduction_size
-#red_size <- reduction_size_actual
-
-ggplot(data.frame('time' = seq(1, new_diag_day - 1, length = new_diag_day - 1), 'reduction' = red_size),
-       aes(x = time, y = red_size)) + geom_point() + 
-       stat_smooth(aes(x = time, y = red_size), method = "lm", formula = y ~ x, se = TRUE) + 
-       ylab('Reduction (%)') + xlab('Day of Intervention') + 
-       ggtitle('Reduction in Outbreak Size')
-
-reduction_line = lm(red_size ~ time, 
-                    data = data.frame('time' = seq(1, new_diag_day - 1, length=new_diag_day - 1),
-                                      'reduction' = red_size))
-
-sink(file.path(output_folder, "reduction_fit_line.txt"))
-summary(reduction_line)
-sink()
-
-ggsave(file.path(plotting_folder, "5-outbreak_reduction.pdf"))
 
 # =============================================================================
 # CONFIDENCE INTERVALS FOR GLOBAL PARAMS VIA PROFILE LIKELIHOOD 
@@ -636,17 +517,13 @@ mcap_cool_frac_lastif <- as.numeric(prop$mcap_cool_frac_lastif)
 mcap_lambda <- list(beta=as.numeric(prop$mcap_lambda_beta),
                     gamma=as.numeric(prop$mcap_lambda_gamma),
                     rho=as.numeric(prop$mcap_lambda_rho),
-                    psi=as.numeric(prop$mcap_lambda_psi),
-                    p=as.numeric(prop$mcap_lambda_p),
-                    q=as.numeric(prop$mcap_lambda_q))
+                    psi=as.numeric(prop$mcap_lambda_psi))
 
 
 mcap_ngrid <- list(beta=as.numeric(prop$mcap_ngrid_beta),
                    gamma=as.numeric(prop$mcap_ngrid_gamma),
                    rho=as.numeric(prop$mcap_ngrid_rho),
-                   psi=as.numeric(prop$mcap_ngrid_psi),
-                   p=as.numeric(prop$mcap_ngrid_p),
-                   q=as.numeric(prop$mcap_ngrid_q))
+                   psi=as.numeric(prop$mcap_ngrid_psi))
 
 # Function to calculate the MCAP CIs 
 
