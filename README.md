@@ -16,5 +16,5 @@ The .Rmd notebooks can be run from within RStudio, using the desired properties 
 
 ### Versions used
 
-R: 4.0.5
-pomp: 3.3
+* R: 4.0.5
+* pomp: 3.3
