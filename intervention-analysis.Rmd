@@ -43,7 +43,7 @@ DATA
 main_folder <- "./intervention"
 data_folder <- "./data"
 
-prop_file = file.path(main_folder, "opt.properties")
+prop_file = file.path(main_folder, "fast.properties")
 prop <- read.properties(prop_file)
 
 output_name <- prop$output_name
