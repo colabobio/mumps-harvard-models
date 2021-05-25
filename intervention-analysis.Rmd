@@ -43,7 +43,7 @@ DATA
 main_folder <- "./intervention"
 data_folder <- "./data"
 
-prop_file = file.path(main_folder, "fast.properties")
+prop_file = file.path(main_folder, "opt.properties")
 prop <- read.properties(prop_file)
 
 output_name <- prop$output_name
@@ -147,6 +147,8 @@ ggsave(file.path(plotting_folder, "0-daily-cases.pdf"))
 ggplot(data=subset(weekly_data, week <= total_weeks), aes(x=week, y=cases, group=1)) + geom_line()
 ggsave(file.path(plotting_folder, "0-weekly-cases.pdf"))
 
+data_all=subset(data,time <= 200)
+data_all$.id<-"data"
 data=subset(data,time <= total_days)
 ```
 
@@ -461,15 +463,15 @@ calc_cumulative_counts <- function(sdat, len) {
 ```{r}
 #set.seed(test_sim_seed)
 
-mdl_int  %>%
-  simulate(params=theta_opt, nsim=9, format="data.frame", include.data=TRUE) -> sim_data
+mdl_int %>%
+  simulate(params=theta_opt, nsim=9, format="data.frame", include.data=FALSE, times=1:200) %>% bind_rows(data_all) -> sim_data
 
 sim_data %>%
   ggplot(aes(x=time, y=cases, group=.id, color=(.id=="data"))) +
   guides(color=FALSE) +
   geom_line() + facet_wrap(~.id, ncol=2)
 
-ggsave(file.path(plotting_folder, "3-simulations_int.pdf"))
+ggsave(file.path(plotting_folder, "3-simulations_long.pdf"))
 ```
 
 PLOT HARVARD OUTBREAK WITHOUT INTERVENTION
@@ -504,20 +506,39 @@ mdl_int %>%
   simulate(params=theta_opt, nsim=num_sims, format = "data.frame", include.data=TRUE) %>% 
   rem_low_count_simulations(num_sims) -> sim_data_int
 
-mdl_int %>% 
-  simulate(params=theta_noq, nsim=num_sims, format = "data.frame", include.data=TRUE) %>%  
-  rem_low_count_simulations(num_sims) -> sim_data_noint
-
 # Adding cumulative counts
-cobs <- cumulative_curve(data, total_days)
+cobs <- cumulative_curve(data_all, 110)
 
-all_csum <- calc_cumulative_counts(sim_data_int, total_days)
+all_csum <- calc_cumulative_counts(sim_data_int, 110)
 all_csum <- c(cobs, all_csum)
 sim_data_int <- cbind(sim_data_int, cumulative=all_csum)
+sim_data_int
+```
 
-all_csum <- calc_cumulative_counts(sim_data_noint, total_days)
-all_csum <- c(cobs, all_csum)
-sim_data_noint <- cbind(sim_data_noint, cumulative=all_csum)
+```{r}
+# Running a large number of simulations with and without intervention
+
+set.seed(full_sim_seed)
+
+mdl_int %>% 
+  simulate(params=theta_opt, nsim=num_sims, format = "data.frame", include.data=FALSE, times=1:200) -> sim_data_int
+
+sim_data_int <- bind_rows(data_all, sim_data_int)
+
+sim_data_int <- rem_low_count_simulations(sim_data_int, num_sims)
+sim_data_int
+
+#%>% 
+#  rem_low_count_simulations(num_sims) -> sim_data_int
+
+#sim_data_int
+
+# Adding cumulative counts
+#cobs <- cumulative_curve(data_all, 200)
+
+#all_csum <- calc_cumulative_counts(sim_data_int, 200)
+#all_csum <- c(cobs, all_csum)
+#sim_data_int <- cbind(sim_data_int, cumulative=all_csum)
 ```
 
 ```{r}
@@ -566,7 +587,7 @@ ggplot(df, aes(time)) +
   geom_vline(xintercept = new_diag_day, colour = 'black', linetype = 3)  + 
   ylab('Cumulative Number of Cases')
 
-ggsave(file.path(plotting_folder, "4-cumulative_cases_median-comparison.pdf"))
+ggsave(file.path(plotting_folder, "4-cumulative_cases_long.pdf"))
 ```
 
 ```{r}
