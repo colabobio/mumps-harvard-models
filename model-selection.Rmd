@@ -20,19 +20,19 @@ MODELS
 l0 <- -235.68949546214
 d0 <- 4
 aic0 <- -2 * l0 + 2 * d0
-aic0
+paste("AIC baseline model ", aic0)
 
 # Breaks
 l1 <- -233.805450489179  
 d1 <- 5 
 aic1 <- -2 * l1 + 2 * d1
-aic1
+paste("AIC breaks model ", aic1)
 
 # Intervention
 l2 <- -229.448016432163
 d2 <- 6
 aic2 <- -2 * l2 + 2 * d2
-aic2
+paste("AIC intervention model ", aic2)
 ```
 
 TESTS
