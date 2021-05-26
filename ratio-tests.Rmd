@@ -1,0 +1,60 @@
+---
+title: "Understanding Interventions"
+author: "Mirai Shah, Gabrielle Ferra, Andres Colubri"
+date: "5/24/2021"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(doRNG)
+library(pomp)
+stopifnot(packageVersion("pomp")>="3")
+```
+
+MODELS
+
+```{r}
+# Baseline
+l0 <- -235.68949546214
+d0 <- 4
+
+# Breaks
+l1 <- -233.805450489179  
+d1 <- 5 
+
+# Intervention
+l2 <- -229.448016432163
+d2 <- 6
+```
+
+TESTS
+
+See section Likelihood ratio tests for nested hypotheses in
+https://kingaa.github.io/sbied/pfilter/notes.pdf
+
+```{r}
+l20 <- l2 - l0
+print(l20)
+
+d20 <- d2 - d0
+c <- qchisq(0.95, df=d20)/2
+print(c)
+```
+```{r}
+l10 <- l1 - l0
+print(l10)
+
+d10 <- d1 - d0
+c <- qchisq(0.95, df=d10)/2
+print(c)
+```
+```{r}
+l21 <- l2 - l1
+print(l21)
+
+d21 <- d2 - d1
+c <- qchisq(0.95, df=d21)/2
+print(c)
+```
