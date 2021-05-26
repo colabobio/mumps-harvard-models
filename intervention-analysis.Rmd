@@ -43,7 +43,7 @@ DATA
 main_folder <- "./intervention"
 data_folder <- "./data"
 
-prop_file = file.path(main_folder, "fast.properties")
+prop_file = file.path(main_folder, "opt.properties")
 prop <- read.properties(prop_file)
 
 output_name <- prop$output_name
@@ -76,6 +76,8 @@ num_sims <- as.integer(prop$num_sims)
 
 total_days <- as.integer(prop$total_days)
 total_weeks <- as.integer(prop$total_weeks)
+max_days <- as.integer(prop$max_days)
+
 new_diag_day <- as.integer(prop$new_diag_day)
 spring_day0 <- as.integer(prop$spring_day0)
 spring_day1 <- as.integer(prop$spring_day1)
@@ -147,6 +149,8 @@ ggsave(file.path(plotting_folder, "0-daily-cases.pdf"))
 ggplot(data=subset(weekly_data, week <= total_weeks), aes(x=week, y=cases, group=1)) + geom_line()
 ggsave(file.path(plotting_folder, "0-weekly-cases.pdf"))
 
+data_all=subset(data,time <= max_days)
+data_all$.id<-"data"
 data=subset(data,time <= total_days)
 ```
 
@@ -395,7 +399,7 @@ rem_low_count_simulations <- function(sdat, n) {
       wcases <- c(wcases, sum(temp$cases))
     }
     wdat <- data.frame(week = unique(wdat$week), cases = wcases)
-    if (any(wcases[1:(length(wcases)-wlim)] == 0)) {
+    if (any(wcases[1:(total_weeks-wlim)] == 0)) {
       sdat <- subset(sdat, .id != i)
     } else{
       all_totals <-  c(all_totals, tot)
@@ -462,14 +466,15 @@ calc_cumulative_counts <- function(sdat, len) {
 #set.seed(test_sim_seed)
 
 mdl_int  %>%
-  simulate(params=theta_opt, nsim=9, format="data.frame", include.data=TRUE) -> sim_data
+  simulate(params=theta_opt, nsim=9, format="data.frame", include.data=FALSE, times=1:max_days) -> sim_data
+sim_data <- bind_rows(data_all, sim_data)
 
 sim_data %>%
   ggplot(aes(x=time, y=cases, group=.id, color=(.id=="data"))) +
   guides(color=FALSE) +
   geom_line() + facet_wrap(~.id, ncol=2)
 
-ggsave(file.path(plotting_folder, "3-simulations_int.pdf"))
+ggsave(file.path(plotting_folder, "3-simulations_int200.pdf"))
 ```
 
 PLOT HARVARD OUTBREAK WITHOUT INTERVENTION
@@ -483,14 +488,15 @@ theta_noq["q"] <- 1
 #set.seed(test_sim_seed)
 
 mdl_int  %>%
-  simulate(params=theta_noq, nsim=9, format="data.frame", include.data=TRUE) -> sim_data_noq
+  simulate(params=theta_noq, nsim=9, format="data.frame", include.data=FALSE, times=1:max_days) -> sim_data_noq
+sim_data_noq <- bind_rows(data_all, sim_data_noq)
 
 sim_data_noq %>%
   ggplot(aes(x=time, y=cases, group=.id, color=(.id=="data"))) +
   guides(color=FALSE) +
   geom_line() + facet_wrap(~.id, ncol=2)
 
-ggsave(file.path(plotting_folder, "3-simulations_noint.pdf"))
+ggsave(file.path(plotting_folder, "3-simulations_noint200.pdf"))
 ```
 
 COMPARE CUMULATIVE NUMBERS OF OUTBREAK W/ AND W/O INTERVENTION
@@ -501,21 +507,24 @@ COMPARE CUMULATIVE NUMBERS OF OUTBREAK W/ AND W/O INTERVENTION
 set.seed(full_sim_seed)
 
 mdl_int %>% 
-  simulate(params=theta_opt, nsim=num_sims, format = "data.frame", include.data=TRUE) %>% 
-  rem_low_count_simulations(num_sims) -> sim_data_int
+  simulate(params=theta_opt, nsim=num_sims, format = "data.frame", include.data=FALSE, times=1:max_days) -> sim_data_int
+sim_data_int <- bind_rows(data_all, sim_data_int)
+sim_data_int <- rem_low_count_simulations(sim_data_int, num_sims)
 
 mdl_int %>% 
-  simulate(params=theta_noq, nsim=num_sims, format = "data.frame", include.data=TRUE) %>%  
-  rem_low_count_simulations(num_sims) -> sim_data_noint
+  simulate(params=theta_noq, nsim=num_sims, format = "data.frame", include.data=FALSE, times=1:max_days) -> sim_data_noint
+sim_data_noint <- bind_rows(data_all, sim_data_noint)
+sim_data_noint <- rem_low_count_simulations(sim_data_noint, num_sims)
 
+  
 # Adding cumulative counts
-cobs <- cumulative_curve(data, total_days)
+cobs <- cumulative_curve(data_all, max_days)
 
-all_csum <- calc_cumulative_counts(sim_data_int, total_days)
+all_csum <- calc_cumulative_counts(sim_data_int, max_days)
 all_csum <- c(cobs, all_csum)
 sim_data_int <- cbind(sim_data_int, cumulative=all_csum)
 
-all_csum <- calc_cumulative_counts(sim_data_noint, total_days)
+all_csum <- calc_cumulative_counts(sim_data_noint, max_days)
 all_csum <- c(cobs, all_csum)
 sim_data_noint <- cbind(sim_data_noint, cumulative=all_csum)
 ```
@@ -538,8 +547,8 @@ case_area_plot <- function(sdat, fname) {
   ggsave(file.path(plotting_folder, fname))  
 }
 
-case_area_plot(sim_data_int, "4-simulated_percentiles-with_int.pdf")
-case_area_plot(sim_data_noint, "4-simulated_percentiles-wout_int.pdf")
+case_area_plot(sim_data_int, "4-simulated_percentiles-with_int200.pdf")
+case_area_plot(sim_data_noint, "4-simulated_percentiles-wout_int200.pdf")
 ```
 
 ```{r}
@@ -547,14 +556,14 @@ case_area_plot(sim_data_noint, "4-simulated_percentiles-wout_int.pdf")
 
 num_sims_int <- length(unique(sim_data_int$.id)) - 1
 sim_int <- median_simulation(sim_data_int, num_sims_int)
-csim_int <- cumulative_curve(sim_int, total_days)
+csim_int <- cumulative_curve(sim_int, max_days)
 
 # Getting the median cumulative curve for the simulations w/out interventionsim_noint <- median_simulation(sim_data_noint, num_sims)
 num_sims_noint <- length(unique(sim_data_noint$.id)) - 1
 sim_noint <- median_simulation(sim_data_noint, num_sims_noint)
-csim_noint <- cumulative_curve(sim_noint, total_days)
+csim_noint <- cumulative_curve(sim_noint, max_days)
 
-df <- data.frame('time' = seq(1, total_days), 
+df <- data.frame('time' = seq(1, max_days), 
                  'obs_data' = cobs,
                  'sim_data_int' = csim_int,
                  'sim_data_noint' = csim_noint)
@@ -566,7 +575,7 @@ ggplot(df, aes(time)) +
   geom_vline(xintercept = new_diag_day, colour = 'black', linetype = 3)  + 
   ylab('Cumulative Number of Cases')
 
-ggsave(file.path(plotting_folder, "4-cumulative_cases_median-comparison.pdf"))
+ggsave(file.path(plotting_folder, "4-cumulative_cases_median-comparison200.pdf"))
 ```
 
 ```{r}
@@ -587,9 +596,11 @@ cumulative_area_plot <- function(sdat, ymax, fname) {
   ggsave(file.path(plotting_folder, fname))
 }
 
-cmax <- 0.8 * max(sim_data_int$cumulative, sim_data_noint$cumulative)
-cumulative_area_plot(sim_data_int, cmax, "4-cumulative_cases_percentiles-comparison-with_int.pdf")
-cumulative_area_plot(sim_data_noint, cmax, "4-cumulative_cases_percentiles-comparison-wout_int.pdf")
+cmax <- 0.8 * max(sim_data_int$cumulative)
+cumulative_area_plot(sim_data_int, cmax, "4-cumulative_cases_percentiles-comparison-with_int200.pdf")
+
+cmax <- 0.8 * max(sim_data_noint$cumulative)
+cumulative_area_plot(sim_data_noint, cmax, "4-cumulative_cases_percentiles-comparison-wout_int200.pdf")
 ```
 
 SHOW HOW OUTBREAK SIZE CHANGES (comparison to the simulation size AND actual size)
