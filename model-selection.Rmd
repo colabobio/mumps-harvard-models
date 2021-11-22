@@ -1,11 +1,13 @@
 ---
-title: "Understanding Interventions"
+title: "Model selection"
 author: "Mirai Shah, Gabrielle Ferra, Andres Colubri"
 date: "5/24/2021"
 output:
   html_document:
     df_print: paged
 ---
+
+This notebook uses the log likelihoods of the models to select the "best model" using the likelihood ratio test.
 
 ```{r}
 library(doRNG)

@@ -1,5 +1,5 @@
 ---
-title: "Understanding Interventions"
+title: "Baseline epi model for Harvard outbreak"
 author: "Mirai Shah, Gabrielle Ferra, Andres Colubri"
 date: "5/24/2021"
 output:
@@ -7,13 +7,7 @@ output:
     df_print: paged
 ---
 
-Table of Contents:
-1. Uploading and Cleaning Data
-2. Compartmental Model 
-3. Global MLE and Running Simulations
-4. Comparing an outbreak with and without interventions
-5. Assessing how outbreak would've changed with earlier interventions
-6. MCAP confidence intervals for estimates 
+This notebook fits the parameters of a baseline SEIR model with constant transmission and removal rates.
 
 ```{r}
 library(doRNG)
