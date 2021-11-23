@@ -4,6 +4,12 @@ This folder contains R notebooks and scripts to calculate the Maximum Likelihood
 
 ### How to use
 
+First, all necessary packages can be installed with the following script:
+
+```
+./run_pck.sh
+```
+
 The .Rmd notebooks can be run from within RStudio, using the desired properties files. Otherwise, the .R scripts for intervention and baseline models can be run from the command line as follows:
 
 ```
